@@ -1,35 +1,22 @@
-import { mockParkings } from "../../../data/mockParkings";
-
-const BASE_URL = import.meta.env.VITE_PARKING_BASE_URL;
-const SERVICE_KEY = import.meta.env.VITE_PARKING_SERVICE_KEY;
-
-const USE_MOCK = false;
+import parkingsData from "../../../data/parkings.json";
 
 const parseNumber = (value) => {
   const num = Number(value);
   return Number.isNaN(num) ? null : num;
 };
 
-const getText = (item, tagName) => {
-  return item.querySelector(tagName)?.textContent?.trim() || "";
-};
+const normalizeParking = (parking, index = 0) => {
+  const latitude = parseNumber(parking.latitude ?? parking.lat);
+  const longitude = parseNumber(parking.longitude ?? parking.lng);
 
-const normalizeParking = (item, index = 0) => {
-  const latitude = parseNumber(getText(item, "latitude"));
-  const longitude = parseNumber(getText(item, "longitude"));
-
-  const totalSpaces = parseNumber(getText(item, "prkcmprt"));
-  const baseFee = parseNumber(getText(item, "basicCharge"));
-  const addFee = parseNumber(getText(item, "addCharge"));
-
-  const name = getText(item, "prkplceNm") || "이름 없음";
-  const roadAddress = getText(item, "rdnmadr");
-  const jibunAddress = getText(item, "lnmadr");
-  const address = roadAddress || jibunAddress || "주소 정보 없음";
+  const name = parking.name || "이름 없음";
+  const roadAddress = parking.roadAddress || "";
+  const jibunAddress = parking.jibunAddress || "";
+  const address =
+    parking.address || roadAddress || jibunAddress || "주소 정보 없음";
 
   return {
-    id:
-      getText(item, "prkplceNo") || `${name}-${latitude}-${longitude}-${index}`,
+    id: parking.id || `${name}-${latitude}-${longitude}-${index}`,
     name,
     address,
     roadAddress,
@@ -40,29 +27,29 @@ const normalizeParking = (item, index = 0) => {
     lat: latitude,
     lng: longitude,
 
-    type: getText(item, "prkplceSe"),
-    parkingType: getText(item, "prkplceType"),
-    totalSpaces,
+    type: parking.type || "",
+    parkingType: parking.parkingType || "",
+    totalSpaces: parseNumber(parking.totalSpaces),
 
-    weekdayStart: getText(item, "weekdayOperOpenHhmm"),
-    weekdayEnd: getText(item, "weekdayOperCloseHhmm"),
-    saturdayStart: getText(item, "satOperOperOpenHhmm"),
-    saturdayEnd: getText(item, "satOperCloseHhmm"),
-    holidayStart: getText(item, "holidayOperOpenHhmm"),
-    holidayEnd: getText(item, "holidayCloseOpenHhmm"),
+    weekdayStart: parking.weekdayStart || "",
+    weekdayEnd: parking.weekdayEnd || "",
+    saturdayStart: parking.saturdayStart || "",
+    saturdayEnd: parking.saturdayEnd || "",
+    holidayStart: parking.holidayStart || "",
+    holidayEnd: parking.holidayEnd || "",
 
-    feeInfo: getText(item, "parkingchrgeInfo"),
-    basicTime: getText(item, "basicTime"),
-    basicCharge: baseFee,
-    addUnitTime: getText(item, "addUnitTime"),
-    addCharge: addFee,
-    dayCmmtktAdjTime: getText(item, "dayCmmtktAdjTime"),
-    dayCmmtkt: getText(item, "dayCmmtkt"),
-    monthCmmtkt: getText(item, "monthCmmtkt"),
+    feeInfo: parking.feeInfo || "",
+    basicTime: parking.basicTime || "",
+    basicCharge: parseNumber(parking.basicCharge),
+    addUnitTime: parking.addUnitTime || "",
+    addCharge: parseNumber(parking.addCharge),
+    dayCmmtktAdjTime: parking.dayCmmtktAdjTime || "",
+    dayCmmtkt: parking.dayCmmtkt || "",
+    monthCmmtkt: parking.monthCmmtkt || "",
 
-    operationDay: getText(item, "operDay"),
-    phoneNumber: getText(item, "phoneNumber"),
-    institutionName: getText(item, "institutionNm"),
+    operationDay: parking.operationDay || "",
+    phoneNumber: parking.phoneNumber || "",
+    institutionName: parking.institutionName || "",
   };
 };
 
@@ -113,56 +100,10 @@ const getDistance = (lat1, lng1, lat2, lng2) => {
   return R * c;
 };
 
-const createApiUrl = () => {
-  if (!BASE_URL || !SERVICE_KEY) {
-    throw new Error("주차장 API 환경변수가 설정되지 않았습니다.");
-  }
-
-  const params = new URLSearchParams();
-  params.set("serviceKey", SERVICE_KEY);
-  params.set("pageNo", "1");
-  params.set("numOfRows", "1000");
-  params.set("type", "xml");
-
-  return `${BASE_URL}?${params.toString()}`;
-};
-
-const parseXmlToParkings = (xmlText) => {
-  const parser = new DOMParser();
-  const xml = parser.parseFromString(xmlText, "text/xml");
-
-  const resultCode = xml.querySelector("resultCode")?.textContent?.trim();
-  const resultMsg = xml.querySelector("resultMsg")?.textContent?.trim();
-
-  if (resultCode && resultCode !== "00") {
-    throw new Error(resultMsg || "공공 API 응답 오류");
-  }
-
-  const items = Array.from(xml.querySelectorAll("item"));
-  return items.map((item, index) => normalizeParking(item, index));
-};
-
 async function getAllParkings() {
-  if (USE_MOCK) {
-    return mockParkings.filter(isValidParking);
-  }
-
-  try {
-    const apiUrl = createApiUrl();
-    const response = await fetch(apiUrl);
-
-    if (!response.ok) {
-      throw new Error("주차장 데이터를 불러오지 못했습니다.");
-    }
-
-    const xmlText = await response.text();
-    const parsed = parseXmlToParkings(xmlText);
-
-    return parsed.filter(isValidParking);
-  } catch (error) {
-    console.error("실데이터 호출 실패 → mock 데이터 사용:", error);
-    return mockParkings.filter(isValidParking);
-  }
+  return parkingsData
+    .map((parking, index) => normalizeParking(parking, index))
+    .filter(isValidParking);
 }
 
 export async function fetchParkings(keyword = "") {

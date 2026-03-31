@@ -2,7 +2,11 @@ import { useEffect, useRef } from "react";
 import { Link } from "react-router-dom";
 import { useAuth } from "../../../shared/context/AuthContext";
 import useFavorites from "../../favorite/hooks/useFavorites";
-import { formatBasicFee, formatWeekdayHours } from "../utils/formatParking";
+import {
+  formatCapacity,
+  formatBasicFee,
+  formatOperatingHours,
+} from "../utils/formatParking";
 
 const DEFAULT_PARKING_IMAGE = "/src/shared/image/parking-default.png";
 
@@ -11,6 +15,7 @@ function ParkingCard({
   onSelect,
   isSelected = false,
   shouldScrollIntoView = false,
+  onScrollComplete,
 }) {
   const cardRef = useRef(null);
   const { isLoggedIn } = useAuth();
@@ -22,15 +27,19 @@ function ParkingCard({
 
     cardRef.current.scrollIntoView({
       behavior: "smooth",
-      block: "center",
+      block: "nearest",
     });
-  }, [isSelected, shouldScrollIntoView]);
+
+    onScrollComplete?.();
+  }, [isSelected, shouldScrollIntoView, onScrollComplete]);
 
   const handleFavoriteClick = (e) => {
     e.stopPropagation();
     if (!isLoggedIn) return;
     toggleFavorite(parking);
   };
+
+  if (!parking) return null;
 
   return (
     <article
@@ -44,8 +53,8 @@ function ParkingCard({
     >
       <div className="relative overflow-hidden">
         <img
-          src={parking.imageUrl || DEFAULT_PARKING_IMAGE}
-          alt={parking.name}
+          src={parking.imageUrl || parking.image || DEFAULT_PARKING_IMAGE}
+          alt={parking.name || "주차장 이미지"}
           onError={(e) => {
             e.currentTarget.src = DEFAULT_PARKING_IMAGE;
           }}
@@ -78,36 +87,33 @@ function ParkingCard({
       <div className="p-5">
         <div className="mb-3">
           <h3 className="line-clamp-1 text-lg font-bold text-gray-900">
-            {parking.name}
+            {parking.name || "이름 없음"}
           </h3>
           <p className="mt-2 line-clamp-2 text-sm leading-6 text-gray-500">
             {parking.address || "주소 정보 없음"}
           </p>
         </div>
 
-        {typeof parking.distance === "number" && (
-          <div className="mb-4 inline-flex items-center rounded-full bg-violet-50 px-3 py-1 text-xs font-semibold text-violet-500">
-            📍 {parking.distance.toFixed(1)} km
-          </div>
-        )}
-
         <div className="space-y-2 rounded-2xl bg-gray-50 p-4">
           <div className="flex items-start justify-between gap-3 text-sm">
             <span className="font-medium text-gray-500">운영시간</span>
             <span className="text-right font-semibold text-gray-800">
-              {formatWeekdayHours(parking)}
+              {formatOperatingHours(
+                parking.weekdayStart || parking.operatingStart,
+                parking.weekdayEnd || parking.operatingEnd,
+              )}
             </span>
           </div>
 
           <div className="flex items-start justify-between gap-3 text-sm">
             <span className="font-medium text-gray-500">주차 구획 수</span>
             <span className="text-right font-semibold text-gray-800">
-              {parking.totalSpaces ?? parking.capacity ?? "정보 없음"}
+              {formatCapacity(parking.totalSpaces ?? parking.capacity)}
             </span>
           </div>
 
           <div className="flex items-start justify-between gap-3 text-sm">
-            <span className="font-medium text-gray-500">기본요금</span>
+            <span className="font-medium text-gray-500">기본 요금</span>
             <span className="text-right font-semibold text-pink-500">
               {formatBasicFee(parking)}
             </span>

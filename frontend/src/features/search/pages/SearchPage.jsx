@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import NearbyRecommendations from "../components/NearbyRecommendations";
 import SearchBar from "../components/SearchBar";
 import SearchFilterPanel from "../components/SearchFilterPanel";
@@ -12,6 +12,8 @@ import useSearchParamsState from "../hooks/useSearchParamsState";
 import useSelectedParking from "../hooks/useSelectedParking";
 import useUserLocation from "../hooks/useUserLocation";
 
+const SEARCH_PAGE_STORAGE_KEY = "fairypark-search-page-state";
+
 function SearchPage() {
   const { keyword, filters, setFilters, sortType, setSortType } =
     useSearchParamsState();
@@ -23,13 +25,11 @@ function SearchPage() {
   const [manualParkings, setManualParkings] = useState(null);
   const [isNearbyLoading, setIsNearbyLoading] = useState(false);
   const [nearbyErrorMessage, setNearbyErrorMessage] = useState("");
+  const [scrollTargetParkingId, setScrollTargetParkingId] = useState(null);
+
+  const hasRestoredRef = useRef(false);
 
   const displayParkings = manualParkings ?? parkings;
-
-  useEffect(() => {
-    setManualParkings(null);
-    setNearbyErrorMessage("");
-  }, [keyword]);
 
   const { filteredAndSortedParkings, nearbyRecommendations } = useParkingSearch(
     {
@@ -45,6 +45,68 @@ function SearchPage() {
   const { selectedParking, setSelectedParking } = useSelectedParking(
     filteredAndSortedParkings,
   );
+
+  useEffect(() => {
+    try {
+      const saved = sessionStorage.getItem(SEARCH_PAGE_STORAGE_KEY);
+
+      if (saved) {
+        const parsed = JSON.parse(saved);
+
+        if (parsed.manualParkings) {
+          setManualParkings(parsed.manualParkings);
+        }
+
+        if (parsed.mapBounds) {
+          setMapBounds(parsed.mapBounds);
+        }
+
+        if (parsed.selectedParking) {
+          setSelectedParking(parsed.selectedParking);
+        }
+      }
+    } catch (error) {
+      console.error("검색 페이지 상태 복원 실패:", error);
+    } finally {
+      hasRestoredRef.current = true;
+    }
+  }, [setSelectedParking]);
+
+  useEffect(() => {
+    if (!hasRestoredRef.current) return;
+
+    setManualParkings(null);
+    setNearbyErrorMessage("");
+  }, [keyword]);
+
+  useEffect(() => {
+    try {
+      const stateToSave = {
+        selectedParking,
+        mapBounds,
+        manualParkings,
+      };
+
+      sessionStorage.setItem(
+        SEARCH_PAGE_STORAGE_KEY,
+        JSON.stringify(stateToSave),
+      );
+    } catch (error) {
+      console.error("검색 페이지 상태 저장 실패:", error);
+    }
+  }, [selectedParking, mapBounds, manualParkings]);
+
+  useEffect(() => {
+    if (!selectedParking) return;
+
+    const exists = filteredAndSortedParkings.some(
+      (parking) => parking.id === selectedParking.id,
+    );
+
+    if (!exists) {
+      setSelectedParking(null);
+    }
+  }, [filteredAndSortedParkings, selectedParking, setSelectedParking]);
 
   const handleFilterChange = (key, value) => {
     setFilters((prev) => ({
@@ -62,6 +124,15 @@ function SearchPage() {
     setSortType("DEFAULT");
     setManualParkings(null);
     setNearbyErrorMessage("");
+    setMapBounds(null);
+    setSelectedParking(null);
+    setScrollTargetParkingId(null);
+
+    try {
+      sessionStorage.removeItem(SEARCH_PAGE_STORAGE_KEY);
+    } catch (error) {
+      console.error("검색 페이지 상태 초기화 실패:", error);
+    }
   };
 
   const handleMoveToMyLocation = async () => {
@@ -99,6 +170,15 @@ function SearchPage() {
     } finally {
       setIsNearbyLoading(false);
     }
+  };
+
+  const handleMoveToCard = (parking) => {
+    setSelectedParking(parking);
+    setScrollTargetParkingId(parking.id);
+  };
+
+  const handleCardScrollComplete = () => {
+    setScrollTargetParkingId(null);
   };
 
   const finalLoading = isLoading || isNearbyLoading;
@@ -152,13 +232,16 @@ function SearchPage() {
               onSelectParking={setSelectedParking}
               onBoundsChange={setMapBounds}
               userLocation={userLocation}
+              onMoveToCard={handleMoveToCard}
             />
 
             <SearchResultsSection
               parkings={filteredAndSortedParkings}
               selectedParking={selectedParking}
               onSelectParking={setSelectedParking}
-              shouldScrollIntoView={false}
+              shouldScrollIntoView
+              scrollTargetParkingId={scrollTargetParkingId}
+              onCardScrollComplete={handleCardScrollComplete}
             />
           </>
         )}

@@ -6,6 +6,8 @@ function SearchResultsSection({
   selectedParking,
   onSelectParking,
   shouldScrollIntoView = false,
+  scrollTargetParkingId = null,
+  onCardScrollComplete,
 }) {
   if (parkings.length === 0) {
     return <SearchEmptyState />;
@@ -13,13 +15,16 @@ function SearchResultsSection({
 
   return (
     <div className="grid gap-6 sm:grid-cols-2 xl:grid-cols-3">
-      {parkings.map((parking) => (
+      {parkings.map((parking, index) => (
         <ParkingCard
-          key={parking.id}
+          key={`${parking.id}-${index}`}
           parking={parking}
           onSelect={onSelectParking}
           isSelected={selectedParking?.id === parking.id}
-          shouldScrollIntoView={shouldScrollIntoView}
+          shouldScrollIntoView={
+            shouldScrollIntoView && scrollTargetParkingId === parking.id
+          }
+          onScrollComplete={onCardScrollComplete}
         />
       ))}
     </div>

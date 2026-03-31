@@ -18,6 +18,7 @@ function MultiMap({
   onSelectParking,
   onBoundsChange,
   userLocation,
+  onMoveToCard,
 }) {
   const mapRef = useRef(null);
   const mapInstanceRef = useRef(null);
@@ -71,10 +72,10 @@ function MultiMap({
 
         const isSameBounds =
           prevBounds &&
-          prevBounds.south === nextBounds.south &&
-          prevBounds.west === nextBounds.west &&
-          prevBounds.north === nextBounds.north &&
-          prevBounds.east === nextBounds.east;
+          prevBounds.swLat === nextBounds.swLat &&
+          prevBounds.swLng === nextBounds.swLng &&
+          prevBounds.neLat === nextBounds.neLat &&
+          prevBounds.neLng === nextBounds.neLng;
 
         if (isSameBounds) return;
 
@@ -125,14 +126,76 @@ function MultiMap({
 
       const infowindow = new window.kakao.maps.InfoWindow({
         content: `
-          <div style="padding:10px 12px; min-width:170px; font-size:13px; line-height:1.4;">
-            <div style="font-weight:700; color:#111827; margin-bottom:4px;">
-              ${parking.name}
-            </div>
-            <div style="color:#6b7280;">
-              ${parking.address}
-            </div>
-          </div>
+           <div style="
+      padding:12px 14px;
+      max-width:240px;
+      font-size:13px;
+      line-height:1.5;
+      box-sizing:border-box;
+      white-space:normal;
+    ">
+      <div style="
+        font-weight:700;
+        color:#111827;
+        margin-bottom:6px;
+        white-space:normal;
+        word-break:break-word;
+        overflow-wrap:anywhere;
+      ">
+        ${parking.name}
+      </div>
+
+       <div style="
+      padding:12px 14px;
+      max-width:220px;
+      font-size:13px;
+      line-height:1.5;
+      box-sizing:border-box;
+      white-space:normal;
+    ">
+      <div style="
+        font-weight:700;
+        color:#111827;
+        margin-bottom:6px;
+        white-space:normal;
+        word-break:break-word;
+        overflow-wrap:anywhere;
+      ">
+        ${parking.name}
+      </div>
+
+      <div style="
+        color:#6b7280;
+        margin-bottom:10px;
+        white-space:normal;
+        word-break:break-word;
+        overflow-wrap:anywhere;
+      ">
+        ${parking.address}
+      </div>
+
+      <a
+        href="#"
+        class="move-to-card-btn"
+        data-id="${parking.id}"
+        style="
+          display:block;
+          width:100%;
+          height:36px;
+          line-height:36px;
+          text-align:center;
+          text-decoration:none;
+          border-radius:10px;
+          background:#111827;
+          color:#ffffff;
+          font-size:12px;
+          font-weight:600;
+          box-sizing:border-box;
+        "
+      >
+        정보 보기
+      </a>
+    </div>
         `,
       });
 
@@ -156,6 +219,19 @@ function MultiMap({
         infowindow.open(map, marker);
 
         onSelectParking?.(parking);
+
+        setTimeout(() => {
+          const button = document.querySelector(
+            `.move-to-card-btn[data-id="${parking.id}"]`,
+          );
+
+          if (button) {
+            button.onclick = (event) => {
+              event.preventDefault();
+              onMoveToCard?.(parking);
+            };
+          }
+        }, 0);
       });
 
       markerMapRef.current.set(parking.id, marker);
@@ -167,13 +243,14 @@ function MultiMap({
 
     if (markers.length > 0) {
       clusterer.addMarkers(markers);
-
-      if (!hasInitializedBoundsRef.current) {
-        map.setBounds(bounds);
-        hasInitializedBoundsRef.current = true;
-      }
+      map.setBounds(bounds);
     }
-  }, [parkings, onSelectParking]);
+
+    if (!hasInitializedBoundsRef.current) {
+      map.setBounds(bounds);
+      hasInitializedBoundsRef.current = true;
+    }
+  }, [parkings, onSelectParking, onMoveToCard]);
 
   useEffect(() => {
     if (!selectedParking) return;

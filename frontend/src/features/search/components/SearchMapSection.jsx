@@ -6,6 +6,7 @@ function SearchMapSection({
   onSelectParking,
   onBoundsChange,
   userLocation,
+  onMoveToCard,
 }) {
   return (
     <div className="mb-6 overflow-hidden rounded-3xl bg-white p-3 shadow-sm ring-1 ring-black/5">
@@ -15,6 +16,7 @@ function SearchMapSection({
         onSelectParking={onSelectParking}
         onBoundsChange={onBoundsChange}
         userLocation={userLocation}
+        onMoveToCard={onMoveToCard}
       />
     </div>
   );

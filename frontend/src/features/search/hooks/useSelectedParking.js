@@ -4,10 +4,7 @@ function useSelectedParking(parkings) {
   const [selectedParking, setSelectedParking] = useState(null);
 
   useEffect(() => {
-    if (!parkings.length) {
-      setSelectedParking(null);
-      return;
-    }
+    if (!parkings.length) return;
 
     setSelectedParking((prev) => {
       if (!prev) return null;
